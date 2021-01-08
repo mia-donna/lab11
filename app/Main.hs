@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-} 
+
 module Main where
 
 import Control.Concurrent  ( threadDelay, forkIO , takeMVar , putMVar , newEmptyMVar , MVar , newMVar , readMVar )
@@ -492,6 +494,7 @@ main = do
 data Coin = Head | Tail  deriving (Show, Eq)
 type Name = String
 type FirstWinner = String
+type SecondWinner = String
 type AccountBalance = Int
      
 -- function - gets one of the two values at random
@@ -517,8 +520,8 @@ data Customer = Customer {
   account :: Account
 } deriving (Eq, Show)
 
-process :: Name -> Account -> Customer -> MVar FirstWinner -> MVar Coin -> IO ()
-process name account cust firstwinner box = do 
+process :: Name -> Account -> Customer -> MVar FirstWinner -> MVar SecondWinner -> MVar Coin -> IO ()
+process name account cust firstwinner secondwinner box = do 
     -- we will take a coin value from the box so that other process is blocked
     -- if there is someone already took the coin, this thread will hang + waiting until something in the box
     c2 <- takeMVar box 
@@ -528,22 +531,28 @@ process name account cust firstwinner box = do
     -- then we compare the two coins
     -- each process needs to 1. TAKE A COIN 2. CHECK if its the same in the BOX 3. IF YES == WINNER and stop threads 4. IF NO the put COIN INTO BOX 
     putStrLn $ name ++ "--- got " ++ (show c1)  
-    if c1 == c2 then
+    if c1 == c2 then do
+        putStrLn $ "There was a match between the coin in the box and the coin the first process got - so they will get the transfer"
         -- we can declare this thread the winner -- puts in the winner box the message that says "i've won"
         putMVar firstwinner ("Customer Thread Process " ++ name ++ " wins! So they get the transfer..." ++ " The winning customer account details are: " ++ (show cust) )
+        --i <- takeMVar firstwinner
         -- ****NEW**** ADD A TRANSFER FOR THE WINNER
         --amount <- randomN
         -- choose a random account to transfer into
-
-        
-        -- if not winner then need to do a few things
-    else do 
-        -- put it back in the box so the next thread can have a go (this is where we checked to see if it was the same as our flip)
-        putStrLn $ "putting coin back in the box"
+        -- we can declare this thread the second winner -- puts in the winner box the message that says "i've won"
+        putStrLn $ "putting coin back in the box to find the payee - which is the next customer to flip the same as the original coin"
         putMVar box c2
-        threadDelay 100 
+        threadDelay 100
+        else if c1 /= c2 then do
+            putMVar secondwinner ("Customer Thread Process " ++ name ++ " is our second winner! So they complete the transfer..." ++ " Their customer account details are: " ++ (show cust) )
+        -- if not winner then need to do a few things
+        else do
+        -- put it back in the box so the next thread can have a go (this is where we checked to see if it was the same as our flip)
+            putStrLn $ "putting coin back in the box"
+            putMVar box c2
+            threadDelay 100 
         -- wait a bit until we can repeat the process
-        process name account cust firstwinner box
+            process name account cust firstwinner secondwinner box
 
 main :: IO ()
 main = do
@@ -553,7 +562,8 @@ main = do
     -- put coin in the main box (main box is box) and starts with a value (newMVar)
     box <- newMVar coin 
     -- create an empty box for the winner (newEmptyMVar)
-    firstwinner <- newEmptyMVar 
+    firstwinner <- newEmptyMVar
+    secondwinner <- newEmptyMVar 
     -- HAVE TO create 3 customers first THEN add them to the THREAD function THEN fork them!!!
 
     let c1 = Customer {name = "C1", accountBalance = 100, account = One}
@@ -561,9 +571,9 @@ main = do
     let c3 = Customer {name = "C3", accountBalance = 100, account = Three}
 
     -- fork the three processes, with the winner box and the coin box
-    forkIO (process "A" One c1 firstwinner box)
-    forkIO (process "B" Two c2 firstwinner box)
-    forkIO (process "C" Three c3 firstwinner box)
+    forkIO (process "A" One c1 firstwinner secondwinner box)
+    forkIO (process "B" Two c2 firstwinner secondwinner box)
+    forkIO (process "C" Three c3 firstwinner secondwinner box)
 
     -- so that these processes can interact, before the main thread ends, block the main thread
     -- we need a way to ensure the main thread waits so the 3 players can play
@@ -571,11 +581,19 @@ main = do
     -- main thread is waiting until 1 player declares themselves the winner
     -- then the winner will be filled and the main thread can take the winner from the box
     w <- takeMVar firstwinner
+    z <- takeMVar secondwinner
     putStrLn $ "The winner is: " ++ w
     -- ****NEW**** ADD A TRANSFER FOR THE FIRST WINNER
     amount <- randomN
     -- choose a random account to transfer into
     putStrLn $ "The winning customer gets: £" ++ (show amount)
+    
+    putStrLn $ "Now we will find the payee.. "
+
+
+
+
+
 
 
 -- get any random number between 10 : 50

@@ -47,6 +47,8 @@ executable lab11-exe
       base >=4.7 && <5
     , lab11
     , random
+    , containers
+    , stm
 
   default-language: Haskell2010
 

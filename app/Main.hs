@@ -368,6 +368,9 @@ main = do
 -}
 
 
+
+
+{-
 -- SECOND COIN FLIP GAME WITH NOTES ******************************************************************************
 
 -- here i've updated the create thread function "process" which includes an original data type Account and the Account Number printed
@@ -378,6 +381,10 @@ data Coin = Head | Tail  deriving (Show, Eq)
 type Name = String
 type Winner = String
 
+-- should I be creating a fucntion to change customer names to string? so we can print hem out
+--customerNames :: Customer -> String
+--customerNames customer = name customer : Map.map name (account customer)
+     
 -- function - gets one of the two values at random
 coinFlip :: IO Coin
 coinFlip = do 
@@ -392,9 +399,15 @@ coinFlip = do
 -- MVar String (name of winner) -- MVar Coin (coin that was initially flipped)
 -- 1) we will flip a coin, 2) then the players will take turns to try to get the same value as the initial coin
 -- needs to be IO() to spawn a thread
--- 
 
 data Account = One | Two | Three deriving (Show, Eq)
+
+data Customer = Customer {
+  name :: Name,
+  --accountBalance :: AccountBalance,
+  account :: Account
+} deriving (Eq, Show)
+
 
 process :: Name -> Account -> MVar Winner -> MVar Coin -> IO ()
 process name account winner box = do 
@@ -440,3 +453,123 @@ main = do
     w <- takeMVar winner
     putStrLn $ "The winner is: " ++ w
 -- END OF SECOND COIN FLIP GAME WITH NOTES ******************************************************************************
+
+-}
+
+
+
+
+-- CUSTOMER PROCESS NEEDS TO INCLUDE: remember this is a customer
+--1. take something from the box to clear it?
+   -- x <- takeMVar box
+--2. declare WHICH customer it is that's running the customer thread process
+  -- putStrLn $ Customer name "'s turn"   (we do need a name here in the process)
+-- select one of the other customers at random (1 random customer selection func)
+   -- putStrLn $ "Selecting a random customer to transfer funds to..."
+   -- y <- selectRandomCustomer
+   -- putStrLn $ name ++ "--- got " ++ (show y)
+-- transfer a random amount of money (between £10 and £50) (random number 10:50 func )
+   -- amount <- randomNumber10:50
+   -- transfer(function) amount to y
+
+
+   --TO TRY !!!!!!!!!!!!!!
+   -- Create a "random selector" that selects customer threads..?
+
+-- you have to give, when you run the process in main and create the fork, the customer details (or the account details)
+-- so maybe we create a customer (eg let c1 = c1 data ) then we forkIO process "A"--ID One--Account c1--Customer info box-- box
+-- basically we want to try to show customer data in a thread (we can transfer and we can select account numbers) -- but we want to select a customer datapoint from a thread process
+-- we can do it with a thread, but not a process yet
+
+
+ -- THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
+
+-- here i've updated the create thread function "process" which includes CUSTOMER and the ability to print CUSTOMER!!!
+-- next I need to try to make two threads inetract, and try transfering funds?
+
+
+-- datatype
+data Coin = Head | Tail  deriving (Show, Eq)
+type Name = String
+type Winner = String
+
+-- should I be creating a fucntion to change customer names to string? so we can print hem out
+--customerNames :: Customer -> String
+--customerNames customer = name customer : Map.map name (account customer)
+     
+-- function - gets one of the two values at random
+coinFlip :: IO Coin
+coinFlip = do 
+    r <- randomIO :: IO Bool
+    return $ if r then Head else Tail
+    -- if true head, if false tail
+
+-- define the functions that are going to be the implementations of our threads 
+-- three different threads and they're all playing the game 
+-- define the thread -> thread is a process/process is a thread
+-- give each thread a name of the player, then two boxes that each thread will have access to
+-- MVar String (name of winner) -- MVar Coin (coin that was initially flipped)
+-- 1) we will flip a coin, 2) then the players will take turns to try to get the same value as the initial coin
+-- needs to be IO() to spawn a thread
+
+data Account = One | Two | Three deriving (Show, Eq)
+
+data Customer = Customer {
+  name :: Name,
+  --accountBalance :: AccountBalance,
+  account :: Account
+} deriving (Eq, Show)
+
+
+process :: Name -> Account -> Customer -> MVar Winner -> MVar Coin -> IO ()
+process name account cust winner box = do 
+    -- we will take a coin value from the box so that other process is blocked
+    -- if there is someone already took the coin, this thread will hang + waiting until something in the box
+    c2 <- takeMVar box 
+    -- then the thread flips its own coin 
+    putStrLn $ name ++ "'s turn"
+    c1 <- coinFlip
+    -- then we compare the two coins
+    -- each process needs to 1. TAKE A COIN 2. CHECK if its the same in the BOX 3. IF YES == WINNER and stop threads 4. IF NO the put COIN INTO BOX 
+    putStrLn $ name ++ "--- got " ++ (show c1)  
+    if c1 == c2 then
+        -- we can declare this thread the winner -- puts in the winner box the message that says "i've won"
+        putMVar winner ("Customer Thread Process " ++ name ++ " wins!" ++ " The customer is: " ++ (show cust) )
+        -- if not winner then need to do a few things
+    else do 
+        -- put it back in the box so the next thread can have a go (this is where we checked to see if it was the same as our flip)
+        putStrLn $ "putting coin back in the box"
+        putMVar box c2
+        threadDelay 100 
+        -- wait a bit until we can repeat the process
+        process name account cust winner box
+
+main :: IO ()
+main = do
+    -- Flip the original coin
+    coin <- coinFlip
+    putStrLn $ "Random coin is: " ++ (show coin) 
+    -- put coin in the main box (main box is box) and starts with a value (newMVar)
+    box <- newMVar coin 
+    -- create an empty box for the winner (newEmptyMVar)
+    winner <- newEmptyMVar 
+    -- create 3 customers
+
+    let c1 = Customer {name = "C1", account = One}
+    let c2 = Customer {name = "C2", account = Two} 
+    let c3 = Customer {name = "C3", account = Three}
+
+    -- fork the three processes, with the winner box and the coin box
+    forkIO (process "A" One c1 winner box)
+    forkIO (process "B" Two c2 winner box)
+    forkIO (process "C" Three c3 winner box)
+
+    -- so that these processes can interact, before the main thread ends, block the main thread
+    -- we need a way to ensure the main thread waits so the 3 players can play
+    -- because this box is initially empty, this will block the main thread
+    -- main thread is waiting until 1 player declares themselves the winner
+    -- then the winner will be filled and the main thread can take the winner from the box
+    w <- takeMVar winner
+    putStrLn $ "The winner is: " ++ w
+-- END OF THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
+  

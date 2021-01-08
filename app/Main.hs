@@ -485,17 +485,14 @@ main = do
  -- THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
 
 -- here i've updated the create thread function "process" which includes CUSTOMER and the ability to print CUSTOMER!!!
--- next I need to try to make two threads inetract, and try transfering funds?
+-- next I need to try to make two threads inetract, and try transfering funds? so i've added accountBalance, next to try to add a transfer
 
 
 -- datatype
 data Coin = Head | Tail  deriving (Show, Eq)
 type Name = String
-type Winner = String
-
--- should I be creating a fucntion to change customer names to string? so we can print hem out
---customerNames :: Customer -> String
---customerNames customer = name customer : Map.map name (account customer)
+type FirstWinner = String
+type AccountBalance = Int
      
 -- function - gets one of the two values at random
 coinFlip :: IO Coin
@@ -516,13 +513,12 @@ data Account = One | Two | Three deriving (Show, Eq)
 
 data Customer = Customer {
   name :: Name,
-  --accountBalance :: AccountBalance,
+  accountBalance :: AccountBalance,
   account :: Account
 } deriving (Eq, Show)
 
-
-process :: Name -> Account -> Customer -> MVar Winner -> MVar Coin -> IO ()
-process name account cust winner box = do 
+process :: Name -> Account -> Customer -> MVar FirstWinner -> MVar Coin -> IO ()
+process name account cust firstwinner box = do 
     -- we will take a coin value from the box so that other process is blocked
     -- if there is someone already took the coin, this thread will hang + waiting until something in the box
     c2 <- takeMVar box 
@@ -534,7 +530,12 @@ process name account cust winner box = do
     putStrLn $ name ++ "--- got " ++ (show c1)  
     if c1 == c2 then
         -- we can declare this thread the winner -- puts in the winner box the message that says "i've won"
-        putMVar winner ("Customer Thread Process " ++ name ++ " wins!" ++ " The customer is: " ++ (show cust) )
+        putMVar firstwinner ("Customer Thread Process " ++ name ++ " wins! So they get the transfer..." ++ " The winning customer account details are: " ++ (show cust) )
+        -- ****NEW**** ADD A TRANSFER FOR THE WINNER
+        --amount <- randomN
+        -- choose a random account to transfer into
+
+        
         -- if not winner then need to do a few things
     else do 
         -- put it back in the box so the next thread can have a go (this is where we checked to see if it was the same as our flip)
@@ -542,7 +543,7 @@ process name account cust winner box = do
         putMVar box c2
         threadDelay 100 
         -- wait a bit until we can repeat the process
-        process name account cust winner box
+        process name account cust firstwinner box
 
 main :: IO ()
 main = do
@@ -552,24 +553,47 @@ main = do
     -- put coin in the main box (main box is box) and starts with a value (newMVar)
     box <- newMVar coin 
     -- create an empty box for the winner (newEmptyMVar)
-    winner <- newEmptyMVar 
-    -- create 3 customers
+    firstwinner <- newEmptyMVar 
+    -- HAVE TO create 3 customers first THEN add them to the THREAD function THEN fork them!!!
 
-    let c1 = Customer {name = "C1", account = One}
-    let c2 = Customer {name = "C2", account = Two} 
-    let c3 = Customer {name = "C3", account = Three}
+    let c1 = Customer {name = "C1", accountBalance = 100, account = One}
+    let c2 = Customer {name = "C2", accountBalance = 100, account = Two} 
+    let c3 = Customer {name = "C3", accountBalance = 100, account = Three}
 
     -- fork the three processes, with the winner box and the coin box
-    forkIO (process "A" One c1 winner box)
-    forkIO (process "B" Two c2 winner box)
-    forkIO (process "C" Three c3 winner box)
+    forkIO (process "A" One c1 firstwinner box)
+    forkIO (process "B" Two c2 firstwinner box)
+    forkIO (process "C" Three c3 firstwinner box)
 
     -- so that these processes can interact, before the main thread ends, block the main thread
     -- we need a way to ensure the main thread waits so the 3 players can play
     -- because this box is initially empty, this will block the main thread
     -- main thread is waiting until 1 player declares themselves the winner
     -- then the winner will be filled and the main thread can take the winner from the box
-    w <- takeMVar winner
+    w <- takeMVar firstwinner
     putStrLn $ "The winner is: " ++ w
+    -- ****NEW**** ADD A TRANSFER FOR THE FIRST WINNER
+    amount <- randomN
+    -- choose a random account to transfer into
+    putStrLn $ "The winning customer gets: £" ++ (show amount)
+
+
+-- get any random number between 10 : 50
+randomN :: IO Int 
+randomN = do
+    r <- randomRIO (10, 50)
+    return r
+
+transfer :: Customer -> Customer -> Int -> IO (Customer, Customer)
+-- transfer from an acount to another account a desired amount
+transfer from to amount
+  | amount <= 0 = return (from, to)
+  | accountBalance from < amount = return (from, to)
+  | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
+
+-- im adding a first and second winner, to try to run the game again to get a second process to transfer to
+
+
+
 -- END OF THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
   

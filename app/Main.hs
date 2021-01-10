@@ -639,24 +639,27 @@ data Customer = Customer {
   account :: Account
 } deriving (Eq, Show)
 
-process :: Name -> Account -> Customer -> MVar FirstWinner -> MVar SecondWinner -> MVar Coin -> IO ()
-process name account cust firstwinner secondwinner box = do 
+customerthread :: Customer -> MVar (Customer, FirstWinner) -> MVar SecondWinner -> MVar Coin -> IO ()
+customerthread cust firstwinner secondwinner box = do 
     coin <- takeMVar box 
-    putStrLn $ "Step 2. A random thread will play - this thread will now flip a coin. "
-    putStrLn $ "Customer thread " ++ name ++ " is chosen to play: " ++ (show cust)
+ -- Step 2. A random thread will play - this thread will now flip a coin. 
+    putStrLn $ "Customer: " ++ (show cust) ++ " is chosen to play. "
     coin1 <- coinFlip
-    putStrLn $ "Customer thread " ++ name ++ "--- got " ++ (show coin1)
-    putStrLn $ "Step 3. If the coin's match - then this thread becomes the payee. If not, then we will flip the original coin again. If we are on step 3 for the second time - then we're looking for the depositer!"  
-    
+    putStrLn $ "They got --- " ++ (show coin1)
+-- Step 3. If the coin's match - then this thread becomes the payee. If not, then we will flip the original coin again. If we are on step 3 for the second time - then we're looking for the depositer!    
     -- AIM: to find two accounts
     if coin1 == coin then do
-        putStrLn $ "Woop! There was a match between the coin in the box and the coin the customer got - so Customer Thread: " ++ name ++  " will get the transfer"
-        putMVar firstwinner ("Customer Thread Process " ++ name ++ " matches! So they get the transfer..." ++ " Their customer account details are: " ++ (show cust) )
+        putStrLn $ "Woop! There was a match between the coin in the box and the coin the customer got - so Customer: " ++ (show cust) ++  " will get the transfer"
+       
+        --putMVar firstwinner ("Customer: " ++ (show cust) ++ " matches! So they get the transfer..." ++ " Their customer account details are: " ++ (show cust) )
+        -- commented out the above and trying to put the customer in the box with the first winner
+        
+        putMVar firstwinner (cust, ("Customer: " ++ (show cust) ++ " matches! So they get the transfer..." ++ " Their customer account details are: " ++ (show cust) ))
         putStrLn $ "Now putting coin back in the box to find the payee - which is the next random Customer Thread to flip the same as the original coin"
         putMVar box coin1
         threadDelay 100
         -- need to find second winner 
-        putStrLn $ "Customer " ++ name ++ " is chosen to play next"
+        putStrLn $ "Customer " ++ (show cust) ++ " is chosen to play next"
         {-coin1 <- coinFlip
         putStrLn $ name ++ "--- gottt " ++ (show coin1)
         else if coin1 == coin then do
@@ -681,13 +684,13 @@ process name account cust firstwinner secondwinner box = do
             putMVar box coin
             threadDelay 100 
         -- wait a bit until we can repeat the process
-            process name account cust firstwinner secondwinner box
+            customerthread cust firstwinner secondwinner box
 
 main :: IO ()
 main = do
     coin <- coinFlip
-    putStrLn $ "Step 1: Flip a random coin - let's call this first original random coin "
-    putStrLn $ "First original random coin is: " ++ (show coin)
+    --Step 1: Flip a random coin - let's call this first original random coin 
+    putStrLn $ "ORIGINAL COIN IS: " ++ (show coin)
 
     -- put coin in the main box (main box is box) and starts with a value (newMVar)
     box <- newMVar coin 
@@ -710,16 +713,16 @@ main = do
     let c10 = Customer {name = "C10", accountBalance = 20, account = Ten}
 
     -- fork the customer processes, with the winner box and the coin box
-    forkIO (process "A" One c1 firstwinner secondwinner box)
-    forkIO (process "B" Two c2 firstwinner secondwinner box)
-    forkIO (process "C" Three c3 firstwinner secondwinner box)
-    forkIO (process "D" Four c4 firstwinner secondwinner box)
-    forkIO (process "E" Five c5 firstwinner secondwinner box)
-    forkIO (process "F" Six c6 firstwinner secondwinner box)
-    forkIO (process "G" Seven c7 firstwinner secondwinner box)
-    forkIO (process "H" Eight c8 firstwinner secondwinner box)
-    forkIO (process "I" Nine c9 firstwinner secondwinner box)
-    forkIO (process "J" Ten c10 firstwinner secondwinner box)
+    forkIO (customerthread c1 firstwinner secondwinner box)
+    forkIO (customerthread c2 firstwinner secondwinner box)
+    forkIO (customerthread c3 firstwinner secondwinner box)
+    forkIO (customerthread c4 firstwinner secondwinner box)
+    forkIO (customerthread c5 firstwinner secondwinner box)
+    forkIO (customerthread c6 firstwinner secondwinner box)
+    forkIO (customerthread c7 firstwinner secondwinner box)
+    forkIO (customerthread c8 firstwinner secondwinner box)
+    forkIO (customerthread c9 firstwinner secondwinner box)
+    forkIO (customerthread c10 firstwinner secondwinner box)
      
 
     w <- takeMVar firstwinner
@@ -729,7 +732,7 @@ main = do
     amount <- randomN
     -- choose a random account to transfer into
     putStrLn $ "The winning customer gets: £" ++ (show amount)
-    
+    putStrLn $ "The first winner is: " ++ (show w)
     putStrLn $ "exit "
 
 -- get any random number between 10 : 50
@@ -748,12 +751,12 @@ transfer from to amount
 
 
 -- END OF FOURTH COIN FLIP GAME WITH NOTES ******************************************************************************
-
-
 -}
 
 
 
+
+{-
 
 -- START OF FIFTH COIN FLIP GAME WITH NOTES ******************************************************************************   
 -- Sunday 10.01.21
@@ -763,6 +766,7 @@ transfer from to amount
 type Name = String
 type AccountBalance = Int
 data Account = One | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten deriving (Show, Eq)
+
 
 data Customer = Customer {
   name :: Name,
@@ -780,7 +784,8 @@ customers customer_thread box = do
    let transferamount = randomN
    a <- transferamount
    putStrLn $ "Random Payee is: Account " ++ (show payee) ++ " || " ++ " Random Recipient is: Account " ++ (show recipient) ++ " || " ++ "Transfer amount is: " ++ (show a)
-   --(payee, recipient) <- transfer1 payee recipient 10
+   -- transfer doesn't work as i'm selecting accounts 
+   --(payee, recipient) <- transfer payee recipient 10 
    threadDelay 100
    customers customer_thread box
 
@@ -805,8 +810,20 @@ main = do
     -- SPAWN A THREAD FOR EACH CUSTOMER
 
     putStrLn $ "Creating threads.."
-    forkIO (customers c1 box)
-    forkIO (customers c2 box)
+    {- -- testing transfer between threads in MVars : does not work
+    x <- newEmptyMVar
+    let y = forkIO (customers c1 box)
+    putMVar x y
+    w <- takeMVar x
+
+    a <- newEmptyMVar
+    let b = forkIO (customers c2 box)
+    putMVar a b
+    c <- takeMVar b
+    
+    (c,w) <- transfer c w 10
+    -}
+
     forkIO (customers c3 box)
     forkIO (customers c4 box)
     forkIO (customers c5 box)
@@ -817,6 +834,7 @@ main = do
     forkIO (customers c10 box)
     putStrLn $ "10 customer threads created." 
     
+
     a <- newEmptyMVar
     putMVar a c1
     b <- takeMVar a
@@ -824,30 +842,11 @@ main = do
     
     putStrLn $ "exit "
 
-
-
-
-
 -- get any random number between 10 : 50 for the transfer
 randomN :: IO Int 
 randomN = do
     r <- randomRIO (10, 50)
     return r
-
--- map account number to customer? select customer by account number?
-
-
-
-
--- transfer funds from customer -> customer
-transfer1 :: Customer -> Customer -> Int -> IO (Customer, Customer)
-transfer1 from to amount
-  | amount <= 0 = return (from, to)
-  | accountBalance from < amount = return (from, to)
-  | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
-
-
-
 
 randomAccountSelectors :: IO (Account, Account)
 randomAccountSelectors = do
@@ -874,21 +873,129 @@ mapIntToAccount  n = case r of
       9 -> Ten 
     where r = mod n 10
 
+
+transfer :: Customer -> Customer -> Int -> IO (Customer, Customer)
+transfer from to amount
+  -- | amount <= 0 = return (from, to)
+  | accountBalance from < amount = return (from, to)
+  | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
+
+-- I have :
+-- Created 10 customers
+-- Created 10 cusstomer threads
+-- Selected two account numbers   (other way to select customers with coin flips )
+-- Selected random amount to transfer
+-- Can't trasfer money from Account , only by customer, so stuck
+
+
+{- add this to process? And keep details in there
+ MVar (Payee, Recipient, Amount)-}
+
 -- END OF FIFTH COIN FLIP GAME WITH NOTES ******************************************************************************
 
-type Accounts = MVar Integer
+ -}
 
-credit :: Integer -> Accounts -> IO ()
-credit amount account = do
-    current <- takeMVar account
-    putMVar account (current + amount)
+ -- START OF SIXTH COIN FLIP GAME WITH NOTES ******************************************************************************   
+-- Sunday 10.01.21
+-- Aim: to restructure 4
 
-debit :: Integer -> Accounts -> IO ()
-debit amount account = do
-    current <- takeMVar account
-    putMVar account (current - amount)
+data Coin = Head | Tail  deriving (Show, Eq)
+type Name = String
+type FirstWinner = String
+type SecondWinner = String
+type AccountBalance = Int
+     
+coinFlip :: IO Coin
+coinFlip = do 
+    r <- randomIO :: IO Bool
+    return $ if r then Head else Tail
 
-transfer :: Integer -> Accounts -> Accounts -> IO ()
-transfer amount from to = do
-    debit amount from
-    credit amount to
+
+data Account = One | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten deriving (Show, Eq)
+
+data Customer = Customer {
+  name :: Name,
+  accountBalance :: AccountBalance,
+  account :: Account
+} deriving (Eq, Show)
+
+customerthread :: Customer -> MVar (Customer, FirstWinner) -> MVar SecondWinner -> MVar Coin -> IO ()
+customerthread cust firstwinner secondwinner box = do 
+    coin <- takeMVar box 
+    putStrLn $ "Customer: " ++ (show cust) ++ " is playing. "
+    putStrLn $ "test OG" ++ (show coin)
+    coin1 <- coinFlip
+    putStrLn $ "They got --- " ++ (show coin1)
+    if coin1 == coin then do
+        putStrLn $ "Woop! There was a match between the coin in the box and the coin the customer got - so Customer: " ++ (show cust) ++  " will get the transfer"
+        putMVar firstwinner (cust, ("Customer: " ++ (show cust) ++ " gets the transfer..." ++ " Their customer account details are: " ++ (show cust) ))
+        putStrLn $ "Now putting coin back in the box to find the payee - which is the next random Customer Thread to flip the same as the original coin"
+        putMVar box coin1
+        threadDelay 100
+        putStrLn $ "Customer " ++ (show cust) ++ " is chosen to play next"
+        coin1 <- coinFlip
+        putStrLn $ "test NC" ++ (show coin1)
+        else do
+            putStrLn $ "No match this time - putting coin back in the box to try again"
+            putMVar box coin
+            threadDelay 100 
+            customerthread cust firstwinner secondwinner box
+
+main :: IO ()
+main = do
+    coin <- coinFlip
+    putStrLn $ "ORIGINAL COIN IS: " ++ (show coin)
+
+    box <- newMVar coin 
+
+    firstwinner <- newEmptyMVar
+    secondwinner <- newEmptyMVar
+
+    let c1 = Customer {name = "C1", accountBalance = 100, account = One}
+    let c2 = Customer {name = "C2", accountBalance = 100, account = Two} 
+    let c3 = Customer {name = "C3", accountBalance = 100, account = Three}
+    let c4 = Customer {name = "C4", accountBalance = 20, account = Four}
+    let c5 = Customer {name = "C5", accountBalance = 20, account = Five}
+    let c6 = Customer {name = "C6", accountBalance = 20, account = Six}
+    let c7 = Customer {name = "C3", accountBalance = 20, account = Seven}
+    let c8 = Customer {name = "C8", accountBalance = 20, account= Eight}
+    let c9 = Customer {name = "C9", accountBalance = 20, account = Nine}
+    let c10 = Customer {name = "C10", accountBalance = 20, account = Ten}
+
+    forkIO (customerthread c1 firstwinner secondwinner box)
+    forkIO (customerthread c2 firstwinner secondwinner box)
+    forkIO (customerthread c3 firstwinner secondwinner box)
+    forkIO (customerthread c4 firstwinner secondwinner box)
+    forkIO (customerthread c5 firstwinner secondwinner box)
+    forkIO (customerthread c6 firstwinner secondwinner box)
+    forkIO (customerthread c7 firstwinner secondwinner box)
+    forkIO (customerthread c8 firstwinner secondwinner box)
+    forkIO (customerthread c9 firstwinner secondwinner box)
+    forkIO (customerthread c10 firstwinner secondwinner box)
+     
+
+    w <- takeMVar firstwinner
+    z <- takeMVar secondwinner
+
+    amount <- randomN
+    putStrLn $ "The winning customer gets: £" ++ (show amount)
+    putStrLn $ "The first winner is: " ++ (show w)
+    putStrLn $ "exit "
+
+
+
+randomN :: IO Int 
+randomN = do
+    r <- randomRIO (10, 50)
+    return r
+
+transfer :: Customer -> Customer -> Int -> IO (Customer, Customer)
+transfer from to amount
+  | amount <= 0 = return (from, to)
+  | accountBalance from < amount = return (from, to)
+  | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
+
+
+
+-- END OF SIXTH COIN FLIP GAME WITH NOTES ******************************************************************************
+

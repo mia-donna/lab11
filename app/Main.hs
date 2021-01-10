@@ -484,11 +484,11 @@ main = do
 -- we can do it with a thread, but not a process yet
 
 
- -- THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
+ {- -- THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
 
 -- here i've updated the create thread function "process" which includes CUSTOMER and the ability to print CUSTOMER!!!
 -- next I need to try to make two threads inetract, and try transfering funds? so i've added accountBalance, next to try to add a transfer
-
+-- stopping third game progress to restruture it a bit and creating a fourth
 
 -- datatype
 data Coin = Head | Tail  deriving (Show, Eq)
@@ -610,5 +610,120 @@ transfer from to amount
 
 
 
--- END OF THIRD COIN FLIP GAME WITH NOTES ******************************************************************************
-  
+-- END OF THIRD COIN FLIP GAME WITH NOTES ******************************************************************************   -}
+
+-- START OF FOURTH COIN FLIP GAME WITH NOTES ******************************************************************************   
+-- Sunday 10.01.21
+-- Aim: to restructure the process so the interaction works propery
+
+data Coin = Head | Tail  deriving (Show, Eq)
+type Name = String
+type FirstWinner = String
+type SecondWinner = String
+type AccountBalance = Int
+     
+coinFlip :: IO Coin
+coinFlip = do 
+    r <- randomIO :: IO Bool
+    return $ if r then Head else Tail
+
+
+data Account = One | Two | Three deriving (Show, Eq)
+
+data Customer = Customer {
+  name :: Name,
+  accountBalance :: AccountBalance,
+  account :: Account
+} deriving (Eq, Show)
+
+process :: Name -> Account -> Customer -> MVar FirstWinner -> MVar SecondWinner -> MVar Coin -> IO ()
+process name account cust firstwinner secondwinner box = do 
+    r2 <- takeMVar box 
+    putStrLn $ "Step 2. A random thread will play - this thread will now flip a coin. "
+    putStrLn $ "Customer thread " ++ name ++ " is chosen to play"
+    r1 <- coinFlip
+    putStrLn $ name ++ "--- got " ++ (show r1)
+    putStrLn $ "Step 3. If the coin's match - then this thread becomes the payee. If not, then we will flip the original coin again. If we are on step 3 for the second time - then we're looking for the depositer!"  
+    
+    -- AIM: to find two accounts
+    if r1 == r2 then do
+        putStrLn $ "Woop! There was a match between the coin in the box and the coin the customer got - so they will get the transfer"
+        putMVar firstwinner ("Customer Thread Process " ++ name ++ " matches! So they get the transfer..." ++ " Their customer account details are: " ++ (show cust) )
+        putStrLn $ "putting coin back in the box to find the payee - which is the next customer to flip the same as the original coin"
+        putMVar box r2
+        threadDelay 100
+        -- need to find second winner 
+        --putStrLn $ "Customer " ++ name ++ " is chosen to play next"
+        r1 <- coinFlip
+        putStrLn $ name ++ "--- gottt " ++ (show r1)
+        else if r1 == r2 then do
+           putStrLn $ "another match!"
+           putMVar secondwinner ("Customer Thread Process " ++ name ++ " is our second winner! So they complete the transfer..." ++ " Their customer account details are: " ++ (show cust) )
+        
+       -- else if c1 == c2 then do
+          --  putStrLn $ "YEAHH we've got two winners - now we can do a transfer"
+        --else if c1 /= c2 then do
+          --  c2 <- takeMVar box
+           -- putStrLn $ "terminating"
+       {-else if c1 /= c2 then do
+            putStrLn $ "Ah. There was no match. Putting coin back in the box to try again"
+            putMVar box c2
+            threadDelay 100
+            process name account cust firstwinner secondwinner box 
+            putMVar secondwinner ("Customer Thread Process " ++ name ++ " is our second winner! So they complete the transfer..." ++ " Their customer account details are: " ++ (show cust) )
+        -}
+        else do
+        -- put it back in the box so the next thread can have a go (this is where we checked to see if it was the same as our flip)
+            putStrLn $ "putting coin back in the box"
+            putMVar box r2
+            threadDelay 100 
+        -- wait a bit until we can repeat the process
+            process name account cust firstwinner secondwinner box
+
+main :: IO ()
+main = do
+    coin <- coinFlip
+    putStrLn $ "Step 1: Flip a random coin - let's call this first original random coin "
+    putStrLn $ "First original random coin is: " ++ (show coin) 
+    -- put coin in the main box (main box is box) and starts with a value (newMVar)
+    box <- newMVar coin 
+    -- create an empty box for the  first winner (newEmptyMVar)
+    firstwinner <- newEmptyMVar
+    secondwinner <- newEmptyMVar 
+    -- HAVE TO create 3 customers first THEN add them to the THREAD function THEN fork them!!!
+
+    let c1 = Customer {name = "C1", accountBalance = 100, account = One}
+    let c2 = Customer {name = "C2", accountBalance = 100, account = Two} 
+    let c3 = Customer {name = "C3", accountBalance = 100, account = Three}
+
+    -- fork the three processes, with the winner box and the coin box
+    forkIO (process "A" One c1 firstwinner secondwinner box)
+    forkIO (process "B" Two c2 firstwinner secondwinner box)
+    forkIO (process "C" Three c3 firstwinner secondwinner box)
+
+    w <- takeMVar firstwinner
+    z <- takeMVar secondwinner
+    --putStrLn $ "The winner is: " ++ w
+    -- ****NEW**** ADD A TRANSFER FOR THE FIRST WINNER
+    amount <- randomN
+    -- choose a random account to transfer into
+    putStrLn $ "The winning customer gets: £" ++ (show amount)
+    
+    putStrLn $ "exit "
+
+-- get any random number between 10 : 50
+randomN :: IO Int 
+randomN = do
+    r <- randomRIO (10, 50)
+    return r
+
+transfer :: Customer -> Customer -> Int -> IO (Customer, Customer)
+-- transfer from an acount to another account a desired amount
+transfer from to amount
+  | amount <= 0 = return (from, to)
+  | accountBalance from < amount = return (from, to)
+  | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
+
+
+
+-- END OF FOURTH COIN FLIP GAME WITH NOTES ******************************************************************************

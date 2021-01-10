@@ -526,15 +526,17 @@ process name account cust firstwinner secondwinner box = do
     -- if there is someone already took the coin, this thread will hang + waiting until something in the box
     c2 <- takeMVar box 
     -- then the thread flips its own coin 
-    putStrLn $ name ++ "'s turn"
+    putStrLn $ "Step 2. A random thread I created in main will go first (according to the machines OS) - this thread will now flip a coin. Let's see which thread was randomly chosen.. "
+    putStrLn $ "Customer " ++ name ++ " is chosen to play first"
     c1 <- coinFlip
     -- then we compare the two coins
     -- each process needs to 1. TAKE A COIN 2. CHECK if its the same in the BOX 3. IF YES == WINNER and stop threads 4. IF NO the put COIN INTO BOX 
-    putStrLn $ name ++ "--- got " ++ (show c1)  
+    putStrLn $ name ++ "--- got " ++ (show c1)
+    putStrLn $ "Step 3. If the coin's match - then this thread becomes the payee. If not, then we will flip the original coin again."  
     if c1 == c2 then do
-        putStrLn $ "There was a match between the coin in the box and the coin the first process got - so they will get the transfer"
+        putStrLn $ "Woop! There was a match between the coin in the box and the coin the first process got - so they will get the transfer"
         -- we can declare this thread the winner -- puts in the winner box the message that says "i've won"
-        putMVar firstwinner ("Customer Thread Process " ++ name ++ " wins! So they get the transfer..." ++ " The winning customer account details are: " ++ (show cust) )
+        putMVar firstwinner ("Customer Thread Process " ++ name ++ " matches! So they get the transfer..." ++ " Their customer account details are: " ++ (show cust) )
         --i <- takeMVar firstwinner
         -- ****NEW**** ADD A TRANSFER FOR THE WINNER
         --amount <- randomN
@@ -558,7 +560,8 @@ main :: IO ()
 main = do
     -- Flip the original coin
     coin <- coinFlip
-    putStrLn $ "Random coin is: " ++ (show coin) 
+    putStrLn $ "Step 1: Flip a random coin - let's call this first original random coin "
+    putStrLn $ "First original random coin is: " ++ (show coin) 
     -- put coin in the main box (main box is box) and starts with a value (newMVar)
     box <- newMVar coin 
     -- create an empty box for the winner (newEmptyMVar)
@@ -589,12 +592,6 @@ main = do
     putStrLn $ "The winning customer gets: £" ++ (show amount)
     
     putStrLn $ "Now we will find the payee.. "
-
-
-
-
-
-
 
 -- get any random number between 10 : 50
 randomN :: IO Int 

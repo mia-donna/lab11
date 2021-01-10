@@ -628,7 +628,7 @@ coinFlip = do
     return $ if r then Head else Tail
 
 
-data Account = One | Two | Three deriving (Show, Eq)
+data Account = One | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten deriving (Show, Eq)
 
 data Customer = Customer {
   name :: Name,
@@ -638,28 +638,28 @@ data Customer = Customer {
 
 process :: Name -> Account -> Customer -> MVar FirstWinner -> MVar SecondWinner -> MVar Coin -> IO ()
 process name account cust firstwinner secondwinner box = do 
-    r2 <- takeMVar box 
+    coin <- takeMVar box 
     putStrLn $ "Step 2. A random thread will play - this thread will now flip a coin. "
-    putStrLn $ "Customer thread " ++ name ++ " is chosen to play"
-    r1 <- coinFlip
-    putStrLn $ name ++ "--- got " ++ (show r1)
+    putStrLn $ "Customer thread " ++ name ++ " is chosen to play: " ++ (show cust)
+    coin1 <- coinFlip
+    putStrLn $ "Customer thread " ++ name ++ "--- got " ++ (show coin1)
     putStrLn $ "Step 3. If the coin's match - then this thread becomes the payee. If not, then we will flip the original coin again. If we are on step 3 for the second time - then we're looking for the depositer!"  
     
     -- AIM: to find two accounts
-    if r1 == r2 then do
-        putStrLn $ "Woop! There was a match between the coin in the box and the coin the customer got - so they will get the transfer"
+    if coin1 == coin then do
+        putStrLn $ "Woop! There was a match between the coin in the box and the coin the customer got - so Customer Thread: " ++ name ++  " will get the transfer"
         putMVar firstwinner ("Customer Thread Process " ++ name ++ " matches! So they get the transfer..." ++ " Their customer account details are: " ++ (show cust) )
-        putStrLn $ "putting coin back in the box to find the payee - which is the next customer to flip the same as the original coin"
-        putMVar box r2
+        putStrLn $ "Now putting coin back in the box to find the payee - which is the next random Customer Thread to flip the same as the original coin"
+        putMVar box coin1
         threadDelay 100
         -- need to find second winner 
-        --putStrLn $ "Customer " ++ name ++ " is chosen to play next"
-        r1 <- coinFlip
-        putStrLn $ name ++ "--- gottt " ++ (show r1)
-        else if r1 == r2 then do
+        putStrLn $ "Customer " ++ name ++ " is chosen to play next"
+        {-coin1 <- coinFlip
+        putStrLn $ name ++ "--- gottt " ++ (show coin1)
+        else if coin1 == coin then do
            putStrLn $ "another match!"
            putMVar secondwinner ("Customer Thread Process " ++ name ++ " is our second winner! So they complete the transfer..." ++ " Their customer account details are: " ++ (show cust) )
-        
+        -}
        -- else if c1 == c2 then do
           --  putStrLn $ "YEAHH we've got two winners - now we can do a transfer"
         --else if c1 /= c2 then do
@@ -674,8 +674,8 @@ process name account cust firstwinner secondwinner box = do
         -}
         else do
         -- put it back in the box so the next thread can have a go (this is where we checked to see if it was the same as our flip)
-            putStrLn $ "putting coin back in the box"
-            putMVar box r2
+            putStrLn $ "no match this time - putting coin back in the box to try again"
+            putMVar box coin
             threadDelay 100 
         -- wait a bit until we can repeat the process
             process name account cust firstwinner secondwinner box
@@ -684,22 +684,40 @@ main :: IO ()
 main = do
     coin <- coinFlip
     putStrLn $ "Step 1: Flip a random coin - let's call this first original random coin "
-    putStrLn $ "First original random coin is: " ++ (show coin) 
+    putStrLn $ "First original random coin is: " ++ (show coin)
+
     -- put coin in the main box (main box is box) and starts with a value (newMVar)
     box <- newMVar coin 
-    -- create an empty box for the  first winner (newEmptyMVar)
+
+    -- create an empty box for the  winners (newEmptyMVar)
     firstwinner <- newEmptyMVar
-    secondwinner <- newEmptyMVar 
+    secondwinner <- newEmptyMVar
+
     -- HAVE TO create 3 customers first THEN add them to the THREAD function THEN fork them!!!
 
     let c1 = Customer {name = "C1", accountBalance = 100, account = One}
     let c2 = Customer {name = "C2", accountBalance = 100, account = Two} 
     let c3 = Customer {name = "C3", accountBalance = 100, account = Three}
+    let c4 = Customer {name = "C4", accountBalance = 20, account = Four}
+    let c5 = Customer {name = "C5", accountBalance = 20, account = Five}
+    let c6 = Customer {name = "C6", accountBalance = 20, account = Six}
+    let c7 = Customer {name = "C3", accountBalance = 20, account = Seven}
+    let c8 = Customer {name = "C8", accountBalance = 20, account= Eight}
+    let c9 = Customer {name = "C9", accountBalance = 20, account = Nine}
+    let c10 = Customer {name = "C10", accountBalance = 20, account = Ten}
 
-    -- fork the three processes, with the winner box and the coin box
+    -- fork the customer processes, with the winner box and the coin box
     forkIO (process "A" One c1 firstwinner secondwinner box)
     forkIO (process "B" Two c2 firstwinner secondwinner box)
     forkIO (process "C" Three c3 firstwinner secondwinner box)
+    forkIO (process "D" Four c4 firstwinner secondwinner box)
+    forkIO (process "E" Five c5 firstwinner secondwinner box)
+    forkIO (process "F" Six c6 firstwinner secondwinner box)
+    forkIO (process "G" Seven c7 firstwinner secondwinner box)
+    forkIO (process "H" Eight c8 firstwinner secondwinner box)
+    forkIO (process "I" Nine c9 firstwinner secondwinner box)
+    forkIO (process "J" Ten c10 firstwinner secondwinner box)
+     
 
     w <- takeMVar firstwinner
     z <- takeMVar secondwinner

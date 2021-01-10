@@ -774,6 +774,13 @@ data Customer = Customer {
 customers :: Customer -> MVar Customer -> IO ()
 customers customer_thread box = do 
    putMVar box customer_thread
+   x <- randomAccountSelectors
+   let payee = fst x
+   let recipient = snd x
+   let transferamount = randomN
+   a <- transferamount
+   putStrLn $ "Random Payee is: Account " ++ (show payee) ++ " || " ++ " Random Recipient is: Account " ++ (show recipient) ++ " || " ++ "Transfer amount is: " ++ (show a)
+   --(payee, recipient) <- transfer1 payee recipient 10
    threadDelay 100
    customers customer_thread box
 
@@ -814,7 +821,7 @@ main = do
     putMVar a c1
     b <- takeMVar a
     print b
-
+    
     putStrLn $ "exit "
 
 
@@ -827,9 +834,14 @@ randomN = do
     r <- randomRIO (10, 50)
     return r
 
-transfer :: Customer -> Customer -> Int -> IO (Customer, Customer)
--- transfer from an acount to another account a desired amount
-transfer from to amount
+-- map account number to customer? select customer by account number?
+
+
+
+
+-- transfer funds from customer -> customer
+transfer1 :: Customer -> Customer -> Int -> IO (Customer, Customer)
+transfer1 from to amount
   | amount <= 0 = return (from, to)
   | accountBalance from < amount = return (from, to)
   | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
@@ -863,3 +875,20 @@ mapIntToAccount  n = case r of
     where r = mod n 10
 
 -- END OF FIFTH COIN FLIP GAME WITH NOTES ******************************************************************************
+
+type Accounts = MVar Integer
+
+credit :: Integer -> Accounts -> IO ()
+credit amount account = do
+    current <- takeMVar account
+    putMVar account (current + amount)
+
+debit :: Integer -> Accounts -> IO ()
+debit amount account = do
+    current <- takeMVar account
+    putMVar account (current - amount)
+
+transfer :: Integer -> Accounts -> Accounts -> IO ()
+transfer amount from to = do
+    debit amount from
+    credit amount to

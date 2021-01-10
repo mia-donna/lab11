@@ -612,6 +612,9 @@ transfer from to amount
 
 -- END OF THIRD COIN FLIP GAME WITH NOTES ******************************************************************************   -}
 
+
+
+{-
 -- START OF FOURTH COIN FLIP GAME WITH NOTES ******************************************************************************   
 -- Sunday 10.01.21
 -- Aim: to restructure the process so the interaction works propery
@@ -745,3 +748,118 @@ transfer from to amount
 
 
 -- END OF FOURTH COIN FLIP GAME WITH NOTES ******************************************************************************
+
+
+-}
+
+
+
+
+-- START OF FIFTH COIN FLIP GAME WITH NOTES ******************************************************************************   
+-- Sunday 10.01.21
+-- Aim: Create Customer Data type, Create 10 Customers, Spawn 10 Customer Threads
+-- to restructure the process so the interaction works properly
+
+type Name = String
+type AccountBalance = Int
+data Account = One | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten deriving (Show, Eq)
+
+data Customer = Customer {
+  name :: Name,
+  accountBalance :: AccountBalance,
+  account :: Account
+} deriving (Eq, Show)
+
+-- first step : create a process that spawns a customer thread for each customer
+customers :: Customer -> MVar Customer -> IO ()
+customers customer_thread box = do 
+   putMVar box customer_thread
+   threadDelay 100
+   customers customer_thread box
+
+main :: IO ()
+main = do
+    
+    box <- newEmptyMVar
+
+     --CREATE 10 VALUES OF TYPE CUSTOMER
+    putStrLn $ "Creating customers.."
+    let c1 = Customer {name = "C1", accountBalance = 100, account = One}
+    let c2 = Customer {name = "C2", accountBalance = 100, account = Two} 
+    let c3 = Customer {name = "C3", accountBalance = 100, account = Three}
+    let c4 = Customer {name = "C4", accountBalance = 20, account = Four}
+    let c5 = Customer {name = "C5", accountBalance = 20, account = Five}
+    let c6 = Customer {name = "C6", accountBalance = 20, account = Six}
+    let c7 = Customer {name = "C3", accountBalance = 20, account = Seven}
+    let c8 = Customer {name = "C8", accountBalance = 20, account= Eight}
+    let c9 = Customer {name = "C9", accountBalance = 20, account = Nine}
+    let c10 = Customer {name = "C10", accountBalance = 20, account = Ten}
+    putStrLn $ "10 customers created."
+    -- SPAWN A THREAD FOR EACH CUSTOMER
+
+    putStrLn $ "Creating threads.."
+    forkIO (customers c1 box)
+    forkIO (customers c2 box)
+    forkIO (customers c3 box)
+    forkIO (customers c4 box)
+    forkIO (customers c5 box)
+    forkIO (customers c6 box)
+    forkIO (customers c7 box)
+    forkIO (customers c8 box)
+    forkIO (customers c9 box)
+    forkIO (customers c10 box)
+    putStrLn $ "10 customer threads created." 
+    
+    a <- newEmptyMVar
+    putMVar a c1
+    b <- takeMVar a
+    print b
+
+    putStrLn $ "exit "
+
+
+
+
+
+-- get any random number between 10 : 50 for the transfer
+randomN :: IO Int 
+randomN = do
+    r <- randomRIO (10, 50)
+    return r
+
+transfer :: Customer -> Customer -> Int -> IO (Customer, Customer)
+-- transfer from an acount to another account a desired amount
+transfer from to amount
+  | amount <= 0 = return (from, to)
+  | accountBalance from < amount = return (from, to)
+  | otherwise = return ((from { accountBalance =  ((accountBalance from) - amount)}),(to { accountBalance =  ((accountBalance to) + amount)}))
+
+
+
+
+randomAccountSelectors :: IO (Account, Account)
+randomAccountSelectors = do
+    n <- randomIO :: IO Int
+    let random = mapIntToAccount n
+    m <- randomIO :: IO Int
+    let randomb = mapIntToAccount m
+    if random == randomb then do
+     randomAccountSelectors 
+       else do return (random, randomb)
+       
+
+mapIntToAccount :: Int -> Account
+mapIntToAccount  n = case r of
+      0 -> One
+      1 -> Two
+      2 -> Three
+      3 -> Four
+      4 -> Five
+      5 -> Six
+      6 -> Seven
+      7 -> Eight
+      8 -> Nine
+      9 -> Ten 
+    where r = mod n 10
+
+-- END OF FIFTH COIN FLIP GAME WITH NOTES ******************************************************************************
